@@ -1,0 +1,24 @@
+Resources:
+  LambdaRoleStack:
+    Type: 'AWS::CloudFormation::Stack'
+    Properties:
+      TemplateURL: 'https://nestedstacktest-km.s3.amazonaws.com/LambdaRole.json'
+  LambdaFunction:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      FunctionName: test
+      Code:
+        ZipFile: >-
+          const AWS = require("aws-sdk"); const response =
+          require("cfn-response"); console.log("Hello");
+           { if (err) {  response.send(event, context, "FAILED", {});
+           console.log(err);
+           } else {  response.send(event, context, "SUCCESS", {});
+           } });
+           };
+      Handler: index.handler
+      Role: !GetAtt
+        - LambdaRoleStack
+        - Outputs.LambdaRole
+      Runtime: nodejs8.10
+      Timeout: 60

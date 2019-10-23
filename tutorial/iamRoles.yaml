@@ -1,0 +1,81 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+# Optional: A text string that describes the template
+Description: Sets up an AWS Batch-related role
+
+# Optional
+Metadata:
+  # This part sets the order of input parameters in the 
+  # CloudFormation console
+  AWS::CloudFormation::Interface:  
+    ParameterLabels:
+      GenomicsS3Bucket:
+        default: Genomics Data Bucket
+
+# Optional: Values to pass to your template at runtime
+Parameters:  
+  # This part specifies parameters that aren't hard-coded into the 
+  # infrastucture generation, they must be supplied before launch
+  # I can closely manage these parameters with constraints 
+  # and by specifying type
+  GenomicsS3Bucket:
+    AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
+    ConstraintDescription: S3 genomics bucket name can include numbers,
+      lowercase letters, uppercase letters, and hyphens (-). It cannot
+      start or end with a hyphen (-).
+    Description: Name of S3 bucket for reading and writing genomics data.
+    Type: String
+
+# Required: THE GUTS, Specifies the stack resources and their properties
+Resources:
+  # Here, we are naming a resource and defining it's properties
+  # AWS Batch makes calls to other AWS services. To use Batch, we 
+  # need to create an IAM role that allows Batch to do this
+  BatchServiceRole:
+    Type: AWS::IAM::Role  
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - "batch.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSBatchServiceRole
+  # Here's another resource
+  # It's a IAM policy that allows us to write to the GenomicsS3Bucket
+  # specified in our parameters
+  MyS3ReadWritePolicyJob:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Sid: MyS3ReadWritePolicyJob
+            Effect: Allow
+            Action:
+            - "s3:GetBucketLocation"
+            - "s3:ListBucket"
+            - "s3:ListBucketVersions"
+            - "s3:GetObject"
+            - "s3:GetObjectVersion"
+            - "s3:PutObject"
+            - "s3:ListMultipartUploadParts"
+            - "s3:AbortMultipartUpload"
+            Resource:
+            # Here, intrinsic function !Sub substitutes variables in an input string
+            - !Sub "arn:aws:s3:::${GenomicsS3Bucket}" 
+            - !Sub "arn:aws:s3:::${GenomicsS3Bucket}/*"
+
+# Optional: These are values that are returned when you view your stack's properties
+Outputs:
+  BatchServiceRole:
+    Value: !Ref BatchServiceRole
+  MyS3ReadWritePolicyJob:
+    Value: !Ref MyS3ReadWritePolicyJob
+    # I can use !Ref functions to refer to ANY named resource at any time in the template
+    # I might !Ref a job role I created in "Resources" when I'm creating another
+    # Resource for job definition, for example
